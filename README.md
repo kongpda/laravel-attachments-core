@@ -18,3 +18,12 @@ Use:
 - `kongpda/laravel-attachments-core` for backend-only installs
 - `kongpda/laravel-attachments-livewire` for Blade/Livewire UI
 - `@kongpda/laravel-attachments-react` for React/Inertia UI
+
+## Local development
+
+Run the package locally with:
+
+```bash
+composer install
+vendor/bin/pest
+```
