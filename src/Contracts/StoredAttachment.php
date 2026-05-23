@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Kongpda\LaravelAttachments\Contracts;
 
+/**
+ * @property string $file_path
+ * @property string|null $thumbnail_path
+ * @property string $file_type
+ * @property string $disk
+ */
 interface StoredAttachment
 {
     public function getUrl(): string;

@@ -28,6 +28,8 @@ return [
     ],
     'uploads' => [
         'max_upload_size_kb' => env('ATTACHMENTS_MAX_UPLOAD_SIZE_KB', 10240),
+        // Allowed MIME types for UploadAttachment. Empty = allow any type.
+        'allowed_mimes' => [],
     ],
     'services' => [
         'path_generator' => DefaultPathGenerator::class,

@@ -78,6 +78,16 @@ final class AttachmentConfig
         return (int) config('attachments.uploads.max_upload_size_kb', 10240);
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public static function allowedMimes(): array
+    {
+        $mimes = config('attachments.uploads.allowed_mimes', []);
+
+        return is_array($mimes) ? array_values($mimes) : [];
+    }
+
     public static function loadRoutes(): bool
     {
         return (bool) config('attachments.load_routes', true);

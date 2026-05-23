@@ -1,0 +1,31 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 7
+			path: config/attachments.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:createAttachment\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Actions/UploadAttachment.php
+
+		-
+			message: '#^Trait Kongpda\\LaravelAttachments\\Models\\Concerns\\HasAttachments is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: src/Models/Concerns/HasAttachments.php
+
+		-
+			message: '#^Access to an undefined property Kongpda\\LaravelAttachments\\Contracts\\StoredAttachment\:\:\$file_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/FilesystemAttachmentStorage.php
+
+		-
+			message: '#^Access to an undefined property Kongpda\\LaravelAttachments\\Contracts\\StoredAttachment\:\:\$thumbnail_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/FilesystemAttachmentStorage.php

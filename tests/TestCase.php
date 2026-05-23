@@ -17,6 +17,10 @@ abstract class TestCase extends Orchestra
         Factory::guessFactoryNamesUsing(
             fn (string $modelName) => 'Kongpda\\LaravelAttachments\\Database\\Factories\\'.class_basename($modelName).'Factory'
         );
+
+        // The package migration ships as a .php.stub, which testbench does not
+        // auto-discover. Run it explicitly so DB-backed tests have the table.
+        (include __DIR__.'/../database/migrations/create_attachments_table.php.stub')->up();
     }
 
     protected function getPackageProviders($app): array

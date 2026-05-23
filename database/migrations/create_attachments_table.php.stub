@@ -28,8 +28,7 @@ return new class () extends Migration {
             $table->index(['attachable_type', 'attachable_id'], 'attachments_morphs_index');
             $table->index(['attachable_type', 'attachable_id', 'group'], 'attachments_morphs_group_index');
             $table->index(['attachable_type', 'attachable_id', 'is_default'], 'attachments_morphs_default_index');
-            $table->index('file_path');
-            $table->index('thumbnail_path');
+            $table->index(['attachable_type', 'attachable_id', 'sort_order'], 'attachments_morphs_sort_index');
         });
     }
 

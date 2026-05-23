@@ -89,18 +89,7 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
 
     public function isPreviewableMime(?string $mime): bool
     {
-        if ($mime === null || $mime === '') {
-            return false;
-        }
-
-        return in_array($mime, [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'image/webp',
-            'application/pdf',
-        ], true);
+        return PreviewableMimes::isPreviewable($mime);
     }
 
     public function generateImageThumbnailFromPath(
@@ -135,7 +124,10 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
         string $disk,
         string $mainBasename,
     ): ?string {
-        if ($sourcePath === '' || ! is_readable($sourcePath) || ! AttachmentConfig::pdfThumbnailsEnabled()) {
+        if ($sourcePath === ''
+            || ! is_readable($sourcePath)
+            || ! AttachmentConfig::pdfThumbnailsEnabled()
+            || ! class_exists(Pdf::class)) {
             return null;
         }
 

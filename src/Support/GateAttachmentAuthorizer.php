@@ -15,7 +15,7 @@ final class GateAttachmentAuthorizer implements AttachmentAuthorizer
     {
         $attachable = $attachment->attachable;
 
-        abort_unless($attachable, 404, 'Attachment parent not found.');
+        abort_unless($attachable !== null, 404, 'Attachment parent not found.');
 
         Gate::authorize('view', $attachable);
     }

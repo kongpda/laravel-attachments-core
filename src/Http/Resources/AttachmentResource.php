@@ -6,7 +6,11 @@ namespace Kongpda\LaravelAttachments\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Kongpda\LaravelAttachments\Models\Attachment;
 
+/**
+ * @mixin Attachment
+ */
 final class AttachmentResource extends JsonResource
 {
     public function toArray(Request $request): array
