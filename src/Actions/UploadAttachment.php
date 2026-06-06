@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Kongpda\LaravelAttachments\Contracts\AttachmentStorage;
 use Kongpda\LaravelAttachments\Contracts\PathGenerator;
 use Kongpda\LaravelAttachments\Events\AttachmentUploaded;
+use Kongpda\LaravelAttachments\Exceptions\AttachmentException;
 use Kongpda\LaravelAttachments\Exceptions\DisallowedMimeException;
 use Kongpda\LaravelAttachments\Exceptions\FileTooLargeException;
 use Kongpda\LaravelAttachments\Models\Attachment;
@@ -45,22 +46,28 @@ final class UploadAttachment
         $stored = $this->storage->storeUploadedFile(
             $file,
             $paths['file_path'],
-            $paths['thumbnail_path'],
+            AttachmentConfig::thumbnailsQueued() ? null : $paths['thumbnail_path'],
             $disk,
         );
 
+        $storedPath = $stored['path'] ?? null;
+
+        if (! is_string($storedPath) || $storedPath === '') {
+            throw new AttachmentException('Unable to store uploaded attachment file.');
+        }
+
         // The attachable must use the HasAttachments trait (documented requirement).
         /** @var Attachment $attachment */
-        $attachment = $attachable->createAttachment(array_merge([
+        $attachment = $attachable->createAttachment(array_merge($attributes, [
             'id' => $id,
             'file_name' => $file->getClientOriginalName(),
-            'file_path' => $stored['path'],
+            'file_path' => $storedPath,
             'thumbnail_path' => $stored['thumbnail_path'] ?? null,
             'file_type' => $mime,
             'file_size' => (int) $file->getSize(),
             'disk' => $disk,
             'uploaded_by' => Auth::id(),
-        ], $attributes));
+        ]));
 
         AttachmentUploaded::dispatch($attachment);
 

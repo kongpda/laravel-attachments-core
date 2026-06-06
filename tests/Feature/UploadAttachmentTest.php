@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Kongpda\LaravelAttachments\Actions\UploadAttachment;
 use Kongpda\LaravelAttachments\Events\AttachmentUploaded;
 use Kongpda\LaravelAttachments\Exceptions\DisallowedMimeException;
 use Kongpda\LaravelAttachments\Exceptions\FileTooLargeException;
+use Kongpda\LaravelAttachments\Jobs\GenerateAttachmentThumbnailJob;
 use Kongpda\LaravelAttachments\Models\Attachment;
 use Kongpda\LaravelAttachments\Models\Concerns\HasAttachments;
 
@@ -84,4 +86,64 @@ it('stores the file, persists the record, and dispatches AttachmentUploaded', fu
 
     Storage::disk('local')->assertExists($attachment->file_path);
     Event::assertDispatched(AttachmentUploaded::class);
+});
+
+it('does not allow caller attributes to override trusted stored metadata', function (): void {
+    config()->set('attachments.storage.default_disk', 'local');
+    Storage::fake('local');
+
+    $post = UploadTestPost::create();
+    $file = UploadedFile::fake()->image('photo.png', 640, 480);
+
+    $attachment = app(UploadAttachment::class)->handle($post, $file, [
+        'caption' => 'Trusted caption',
+        'file_path' => 'malicious/path.png',
+        'file_type' => 'text/html',
+        'file_size' => 1,
+        'thumbnail_path' => 'malicious/thumb.jpg',
+        'uploaded_by' => '01J00000000000000000000000',
+    ]);
+
+    expect($attachment->caption)->toBe('Trusted caption')
+        ->and($attachment->file_path)->not->toBe('malicious/path.png')
+        ->and($attachment->file_type)->toBe('image/png')
+        ->and($attachment->file_size)->toBe($file->getSize())
+        ->and($attachment->thumbnail_path)->not->toBe('malicious/thumb.jpg')
+        ->and($attachment->uploaded_by)->toBeNull();
+
+    Storage::disk('local')->assertExists($attachment->file_path);
+});
+
+it('defers thumbnail generation to the queue when configured', function (): void {
+    config()->set('attachments.storage.default_disk', 'local');
+    config()->set('attachments.thumbnails.queued', true);
+    Storage::fake('local');
+    Queue::fake();
+
+    $post = UploadTestPost::create();
+    $file = UploadedFile::fake()->image('photo.png', 640, 480);
+
+    $attachment = app(UploadAttachment::class)->handle($post, $file);
+
+    expect($attachment->thumbnail_path)->toBeNull();
+    Storage::disk('local')->assertExists($attachment->file_path);
+    Queue::assertPushed(GenerateAttachmentThumbnailJob::class, fn (GenerateAttachmentThumbnailJob $job): bool => $job->attachmentId === $attachment->id);
+});
+
+it('does not queue pdf thumbnails when pdf thumbnail support is disabled', function (): void {
+    config()->set('attachments.storage.default_disk', 'local');
+    config()->set('attachments.thumbnails.queued', true);
+    config()->set('attachments.thumbnails.pdf_enabled', false);
+    Storage::fake('local');
+    Queue::fake();
+
+    $post = UploadTestPost::create();
+    $file = UploadedFile::fake()->create('manual.pdf', 10, 'application/pdf');
+
+    $attachment = app(UploadAttachment::class)->handle($post, $file);
+
+    expect($attachment->thumbnail_path)->toBeNull()
+        ->and($attachment->file_type)->toBe('application/pdf');
+
+    Queue::assertNotPushed(GenerateAttachmentThumbnailJob::class);
 });

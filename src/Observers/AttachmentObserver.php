@@ -14,8 +14,8 @@ class AttachmentObserver
     public function created(Attachment $attachment): void
     {
         if (! $attachment->thumbnail_path
-            && $attachment->isPreviewable()
-            && AttachmentConfig::thumbnailsQueued()) {
+            && AttachmentConfig::thumbnailsQueued()
+            && $this->canGenerateQueuedThumbnail($attachment)) {
             GenerateAttachmentThumbnailJob::dispatch($attachment->id);
         }
     }
@@ -32,5 +32,15 @@ class AttachmentObserver
     public function forceDeleted(Attachment $attachment): void
     {
         AttachmentDeleted::dispatch($attachment, true);
+    }
+
+    private function canGenerateQueuedThumbnail(Attachment $attachment): bool
+    {
+        if ($attachment->hasImage()) {
+            return true;
+        }
+
+        return $attachment->file_type === 'application/pdf'
+            && AttachmentConfig::pdfThumbnailsEnabled();
     }
 }

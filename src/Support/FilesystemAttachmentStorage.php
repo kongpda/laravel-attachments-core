@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
 use Kongpda\LaravelAttachments\Contracts\AttachmentStorage;
 use Kongpda\LaravelAttachments\Contracts\StoredAttachment;
+use Kongpda\LaravelAttachments\Exceptions\AttachmentException;
 use Spatie\PdfToImage\Enums\OutputFormat;
 use Spatie\PdfToImage\Pdf;
 use Throwable;
@@ -44,6 +45,10 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
     ): array {
         $disk ??= AttachmentConfig::defaultDisk();
         $stored = Storage::disk($disk)->putFileAs(dirname($filePath), $file, basename($filePath));
+
+        if (! is_string($stored) || $stored === '') {
+            throw new AttachmentException('Unable to store uploaded attachment file.');
+        }
 
         $storedThumbnail = null;
 
@@ -81,7 +86,7 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
         }
 
         if ($attachment->thumbnail_path && $disk->exists($attachment->thumbnail_path)) {
-            $disk->delete($attachment->thumbnail_path);
+            $deleted = $disk->delete($attachment->thumbnail_path) && $deleted;
         }
 
         return $deleted;
@@ -144,8 +149,14 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
                 ->thumbnailSize(400)
                 ->save($tempPath);
 
+            $contents = file_get_contents($tempPath);
+
+            if (! is_string($contents) || $contents === '') {
+                return null;
+            }
+
             $thumbnailPath = sprintf('%s/%s_thumbnail.jpg', $directory, $mainBasename);
-            $written = Storage::disk($disk)->put($thumbnailPath, file_get_contents($tempPath) ?: '');
+            $written = Storage::disk($disk)->put($thumbnailPath, $contents);
 
             return $written ? $thumbnailPath : null;
         } catch (Throwable) {

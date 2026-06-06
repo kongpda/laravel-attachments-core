@@ -38,11 +38,21 @@ class GenerateAttachmentThumbnailJob implements ShouldQueue
             return;
         }
 
-        $extension = pathinfo((string) $attachment->file_path, PATHINFO_EXTENSION);
-        $tempPath = tempnam(sys_get_temp_dir(), 'att_thumb_').'.'.($extension ?: 'bin');
+        $extension = pathinfo((string) $attachment->file_path, PATHINFO_EXTENSION) ?: 'bin';
+        $tempBasePath = tempnam(sys_get_temp_dir(), 'att_thumb_');
+
+        if ($tempBasePath === false) {
+            Log::warning('Unable to create temporary file for attachment thumbnail: '.$attachment->file_path);
+
+            return;
+        }
+
+        $tempPath = $tempBasePath.'.'.$extension;
 
         try {
-            file_put_contents($tempPath, $disk->get($attachment->file_path));
+            if (file_put_contents($tempPath, $disk->get($attachment->file_path)) === false) {
+                return;
+            }
 
             $directory = dirname((string) $attachment->file_path).'/'.FilesystemAttachmentStorage::THUMBNAIL_SUBFOLDER;
             $mainBasename = pathinfo((string) $attachment->file_path, PATHINFO_FILENAME);
@@ -70,6 +80,10 @@ class GenerateAttachmentThumbnailJob implements ShouldQueue
         } finally {
             if (file_exists($tempPath)) {
                 @unlink($tempPath);
+            }
+
+            if (file_exists($tempBasePath)) {
+                @unlink($tempBasePath);
             }
         }
     }
