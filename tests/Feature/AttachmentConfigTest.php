@@ -15,8 +15,9 @@ it('uses the package attachment model by default', function (): void {
     expect(AttachmentConfig::attachmentModel())->toBe(Attachment::class);
 });
 
-it('keeps proxy download disks configured for r2 and s3', function (): void {
-    expect(AttachmentConfig::proxyDownloadDisks())->toBe(['r2', 's3']);
+it('exposes no disk through signed or direct urls until the host opts one in', function (): void {
+    expect(AttachmentConfig::temporaryUrlDisks())->toBe([])
+        ->and(AttachmentConfig::directUrlDisks())->toBe([]);
 });
 
 it('keeps service bindings when the host app overrides unrelated config keys', function (): void {

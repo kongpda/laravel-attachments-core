@@ -75,7 +75,8 @@ class GenerateAttachmentThumbnailJob implements ShouldQueue
             }
 
             if ($thumbnailPath) {
-                $attachment->update(['thumbnail_path' => $thumbnailPath]);
+                // Not fillable: where a file lives is never request input.
+                $attachment->forceFill(['thumbnail_path' => $thumbnailPath])->save();
             }
         } finally {
             if (file_exists($tempPath)) {

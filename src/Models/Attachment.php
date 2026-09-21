@@ -52,21 +52,17 @@ class Attachment extends Model implements StoredAttachment
 
     protected $table = 'attachments';
 
+    /**
+     * Descriptive columns only. Where the file lives, what it is attached to
+     * and who uploaded it are set by the package, so request input can never
+     * repoint an attachment at another file or another owner.
+     */
     protected $fillable = [
-        'id',
-        'attachable_type',
-        'attachable_id',
         'file_name',
-        'file_path',
-        'thumbnail_path',
-        'file_type',
-        'file_size',
-        'disk',
         'caption',
         'group',
         'is_default',
         'sort_order',
-        'uploaded_by',
     ];
 
     public function attachable(): MorphTo

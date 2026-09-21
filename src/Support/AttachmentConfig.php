@@ -22,14 +22,14 @@ final class AttachmentConfig
         );
     }
 
-    public static function proxyDownloadDisks(): array
+    public static function directUrlDisks(): array
     {
-        return array_values(config('attachments.storage.proxy_download_disks', ['r2', 's3']));
+        return array_values(config('attachments.storage.direct_url_disks', []));
     }
 
     public static function temporaryUrlDisks(): array
     {
-        return array_values(config('attachments.storage.temporary_url_disks', ['s3']));
+        return array_values(config('attachments.storage.temporary_url_disks', []));
     }
 
     public static function storagePathPrefixFor(string $attachableType): string
@@ -60,7 +60,7 @@ final class AttachmentConfig
 
     public static function thumbnailsQueued(): bool
     {
-        return (bool) config('attachments.thumbnails.queued', false);
+        return (bool) config('attachments.thumbnails.queued', true);
     }
 
     public static function pdfThumbnailsEnabled(): bool
@@ -71,6 +71,16 @@ final class AttachmentConfig
     public static function maxImageDimension(): int
     {
         return (int) config('attachments.thumbnails.max_image_dimension', 4000);
+    }
+
+    public static function maxSourcePixels(): int
+    {
+        return (int) config('attachments.thumbnails.max_source_pixels', 40_000_000);
+    }
+
+    public static function pruneAfterDays(): int
+    {
+        return (int) config('attachments.prune.after_days', 30);
     }
 
     public static function maxUploadSizeKb(): int
@@ -110,7 +120,7 @@ final class AttachmentConfig
 
     public static function routeMiddleware(): array
     {
-        return array_values(config('attachments.route_middleware', ['auth']));
+        return array_values(config('attachments.route_middleware', ['web', 'auth']));
     }
 
     public static function routePrefix(): string

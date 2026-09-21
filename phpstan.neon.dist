@@ -8,3 +8,18 @@ parameters:
         - config
         - database
     tmpDir: build/phpstan
+    ignoreErrors:
+        # A package's config file is the config directory once published.
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            path: config/attachments.php
+        # decodeImage() supports Intervention 3 and 4, so whichever is installed
+        # makes the other branch look impossible.
+        -
+            identifiers:
+                - function.alreadyNarrowedType
+                - function.impossibleType
+                - staticMethod.notFound
+                - method.notFound
+            path: src/Support/FilesystemAttachmentStorage.php
+            reportUnmatched: false

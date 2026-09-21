@@ -7,7 +7,10 @@ namespace Kongpda\LaravelAttachments\Support;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Laravel\Facades\Image;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
 use Kongpda\LaravelAttachments\Contracts\AttachmentStorage;
 use Kongpda\LaravelAttachments\Contracts\StoredAttachment;
 use Kongpda\LaravelAttachments\Exceptions\AttachmentException;
@@ -109,11 +112,19 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
 
         $thumbnailPath = sprintf('%s/%s_thumbnail.jpg', $directory, $mainBasename);
 
+        // Read the declared size from the header first: decoding is what
+        // allocates, and a few kilobytes can declare a gigapixel canvas.
+        $size = @getimagesize($sourcePath);
+
+        if ($size === false || AttachmentConfig::maxSourcePixels() < $size[0] * $size[1]) {
+            return null;
+        }
+
         try {
-            $image = Image::read($sourcePath);
+            $image = $this->decodeImage($sourcePath);
             $image->scaleDown(AttachmentConfig::maxImageDimension(), AttachmentConfig::maxImageDimension());
             $image->coverDown(200, 200);
-            $encoded = $image->toJpeg(80);
+            $encoded = $image->encode(new JpegEncoder(quality: 80));
 
             $written = Storage::disk($disk)->put($thumbnailPath, (string) $encoded);
 
@@ -166,6 +177,20 @@ final class FilesystemAttachmentStorage implements AttachmentStorage
                 @unlink($tempPath);
             }
         }
+    }
+
+    /**
+     * Intervention is used directly rather than through its Laravel bridge:
+     * Laravel 13 binds its own image manager to the same container key, and
+     * the two major versions a host may have installed name this call differently.
+     */
+    private function decodeImage(string $sourcePath): ImageInterface
+    {
+        if (method_exists(ImageManager::class, 'usingDriver')) {
+            return ImageManager::usingDriver(GdDriver::class)->decodePath($sourcePath);
+        }
+
+        return ImageManager::gd()->read($sourcePath);
     }
 
     private function isImageFile(UploadedFile $file): bool

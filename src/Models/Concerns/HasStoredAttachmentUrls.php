@@ -18,15 +18,7 @@ trait HasStoredAttachmentUrls
 {
     public function getUrl(): string
     {
-        if ($this->shouldUseProxyRoute($this->disk ?? AttachmentConfig::defaultDisk())) {
-            return route('attachment.download', $this);
-        }
-
-        if ($this->supportsTemporaryUrls($this->disk ?? AttachmentConfig::defaultDisk())) {
-            return Storage::disk($this->disk)->temporaryUrl($this->file_path, now()->addMinutes(10));
-        }
-
-        return Storage::disk($this->disk ?? AttachmentConfig::defaultDisk())->url($this->file_path);
+        return $this->urlFor($this->file_path, 'attachment.download');
     }
 
     public function getThumbnailUrl(): ?string
@@ -35,15 +27,7 @@ trait HasStoredAttachmentUrls
             return null;
         }
 
-        if ($this->shouldUseProxyRoute($this->disk ?? AttachmentConfig::defaultDisk())) {
-            return route('attachment.thumbnail', $this);
-        }
-
-        if ($this->supportsTemporaryUrls($this->disk ?? AttachmentConfig::defaultDisk())) {
-            return Storage::disk($this->disk)->temporaryUrl($this->thumbnail_path, now()->addMinutes(10));
-        }
-
-        return Storage::disk($this->disk ?? AttachmentConfig::defaultDisk())->url($this->thumbnail_path);
+        return $this->urlFor($this->thumbnail_path, 'attachment.thumbnail');
     }
 
     public function hasImage(): bool
@@ -67,13 +51,23 @@ trait HasStoredAttachmentUrls
         return $deleted;
     }
 
-    private function shouldUseProxyRoute(string $disk): bool
+    /**
+     * The authorised proxy route unless the disk has been explicitly opted in
+     * to signed or direct URLs. A raw storage URL on the app's own origin would
+     * serve an uploaded HTML or SVG file as the app.
+     */
+    private function urlFor(string $path, string $proxyRoute): string
     {
-        return in_array($disk, AttachmentConfig::proxyDownloadDisks(), true);
-    }
+        $disk = $this->disk ?? AttachmentConfig::defaultDisk();
 
-    private function supportsTemporaryUrls(string $disk): bool
-    {
-        return in_array($disk, AttachmentConfig::temporaryUrlDisks(), true);
+        if (in_array($disk, AttachmentConfig::temporaryUrlDisks(), true)) {
+            return Storage::disk($disk)->temporaryUrl($path, now()->addMinutes(10));
+        }
+
+        if (in_array($disk, AttachmentConfig::directUrlDisks(), true)) {
+            return Storage::disk($disk)->url($path);
+        }
+
+        return route($proxyRoute, $this);
     }
 }

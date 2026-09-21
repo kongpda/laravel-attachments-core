@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongpda\LaravelAttachments\Providers;
 
 use Illuminate\Support\Facades\Route;
+use Kongpda\LaravelAttachments\Console\PruneAttachmentsCommand;
 use Kongpda\LaravelAttachments\Contracts\AttachmentAuthorizer;
 use Kongpda\LaravelAttachments\Contracts\AttachmentStorage;
 use Kongpda\LaravelAttachments\Contracts\PathGenerator;
@@ -18,7 +19,8 @@ final class AttachmentCoreServiceProvider extends PackageServiceProvider
     {
         $package
             ->name('laravel-attachments-core')
-            ->hasConfigFile('attachments');
+            ->hasConfigFile('attachments')
+            ->hasCommand(PruneAttachmentsCommand::class);
 
         if (AttachmentConfig::loadMigrations()) {
             $package->hasMigration('create_attachments_table');

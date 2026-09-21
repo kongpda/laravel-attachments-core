@@ -147,3 +147,86 @@ it('does not queue pdf thumbnails when pdf thumbnail support is disabled', funct
 
     Queue::assertNotPushed(GenerateAttachmentThumbnailJob::class);
 });
+
+it('refuses browser-executable files with the shipped configuration', function (Closure $file): void {
+    // Served from the app's origin, either of these runs script as the app.
+    Storage::fake('local');
+
+    $post = UploadTestPost::create();
+
+    expect(fn () => app(UploadAttachment::class)->handle($post, $file()))
+        ->toThrow(DisallowedMimeException::class);
+
+    expect(Attachment::count())->toBe(0);
+})->with([
+    'html' => [fn () => UploadedFile::fake()->createWithContent('page.html', '<html><script>alert(1)</script></html>')],
+    'svg' => [fn () => UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')],
+    'html claiming to be a png' => [fn () => new UploadedFile(
+        tap(tempnam(sys_get_temp_dir(), 'att'), fn (string $path) => file_put_contents($path, '<html><script>alert(1)</script></html>')),
+        'photo.png', 'image/png', null, true,
+    )],
+]);
+
+it('ignores a disk smuggled in through the attributes', function (): void {
+    // Attributes are often request input; the disk decides where bytes land.
+    config()->set('attachments.storage.default_disk', 'local');
+    Storage::fake('local');
+    Storage::fake('public');
+
+    $attachment = app(UploadAttachment::class)->handle(
+        UploadTestPost::create(),
+        UploadedFile::fake()->image('photo.png'),
+        ['disk' => 'public'],
+    );
+
+    expect($attachment->disk)->toBe('local');
+    Storage::disk('public')->assertDirectoryEmpty('');
+});
+
+it('skips the thumbnail for an image that declares more pixels than allowed', function (): void {
+    config()->set('attachments.storage.default_disk', 'local');
+    config()->set('attachments.thumbnails.queued', false);
+    config()->set('attachments.thumbnails.max_source_pixels', 10_000);
+    Storage::fake('local');
+
+    $attachment = app(UploadAttachment::class)->handle(
+        UploadTestPost::create(),
+        UploadedFile::fake()->image('huge.png', 200, 200),
+    );
+
+    expect($attachment->thumbnail_path)->toBeNull();
+});
+
+it('cannot be repointed at another file or owner through mass assignment', function (): void {
+    config()->set('attachments.storage.default_disk', 'local');
+    Storage::fake('local');
+
+    $attachment = app(UploadAttachment::class)->handle(UploadTestPost::create(), UploadedFile::fake()->image('photo.png'));
+    $original = $attachment->refresh()->only(['file_path', 'disk', 'attachable_id', 'uploaded_by']);
+
+    $attachment->update([
+        'caption' => 'Renamed',
+        'file_path' => '../.env',
+        'disk' => 'public',
+        'attachable_id' => '999',
+        'uploaded_by' => '01J00000000000000000000000',
+    ]);
+
+    expect($attachment->refresh()->caption)->toBe('Renamed')
+        ->and($attachment->only(['file_path', 'disk', 'attachable_id', 'uploaded_by']))->toBe($original);
+});
+
+it('hands out the authorised download route unless a disk is opted in to direct urls', function (): void {
+    config()->set('attachments.storage.default_disk', 'public');
+    config()->set('attachments.thumbnails.queued', false);
+    Storage::fake('public');
+
+    $attachment = app(UploadAttachment::class)->handle(UploadTestPost::create(), UploadedFile::fake()->image('photo.png'));
+
+    expect($attachment->getUrl())->toBe(route('attachment.download', $attachment))
+        ->and($attachment->getThumbnailUrl())->toBe(route('attachment.thumbnail', $attachment));
+
+    config()->set('attachments.storage.direct_url_disks', ['public']);
+
+    expect($attachment->getUrl())->toBe(Storage::disk('public')->url($attachment->file_path));
+});

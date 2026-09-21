@@ -25,20 +25,24 @@ use Kongpda\LaravelAttachments\Support\AttachmentConfig;
  */
 final class UploadAttachment
 {
+    private const array DESCRIPTIVE_ATTRIBUTES = ['caption', 'group', 'is_default', 'sort_order'];
+
     public function __construct(
         private readonly PathGenerator $pathGenerator,
         private readonly AttachmentStorage $storage,
     ) {}
 
     /**
-     * @param  array<string, mixed>  $attributes  Extra attachment columns (caption, group, is_default, sort_order, disk, ...).
+     * @param  array<string, mixed>  $attributes  Descriptive columns only (caption, group, is_default, sort_order). Anything else is dropped, so request input can be passed straight through.
+     * @param  string|null  $disk  Chosen by the calling code, never by request input.
      */
-    public function handle(Model $attachable, UploadedFile $file, array $attributes = []): Attachment
+    public function handle(Model $attachable, UploadedFile $file, array $attributes = [], ?string $disk = null): Attachment
     {
         $this->guardSize($file);
         $mime = $this->guardMime($file);
 
-        $disk = (string) ($attributes['disk'] ?? AttachmentConfig::defaultDisk());
+        $attributes = array_intersect_key($attributes, array_flip(self::DESCRIPTIVE_ATTRIBUTES));
+        $disk ??= AttachmentConfig::defaultDisk();
         $id = (string) Str::ulid();
 
         $paths = $this->pathGenerator->pathsForUpload($attachable, $id, $file->getClientOriginalName());
@@ -86,7 +90,9 @@ final class UploadAttachment
 
     private function guardMime(UploadedFile $file): string
     {
-        $mime = $file->getMimeType() ?: (string) $file->getClientMimeType();
+        // Sniffed from the contents. The client's own claim is never a fallback:
+        // it is the one value an attacker fully controls.
+        $mime = $file->getMimeType() ?: 'application/octet-stream';
         $allowed = AttachmentConfig::allowedMimes();
 
         if ($allowed !== [] && ! in_array($mime, $allowed, true)) {

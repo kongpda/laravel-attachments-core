@@ -39,7 +39,7 @@ trait HasAttachments
         $isFirst = ! array_key_exists('is_default', $attributes)
             && ! $this->attachments()->exists();
 
-        return $this->attachments()->create(array_merge($attributes, [
+        return $this->attachments()->forceCreate(array_merge($attributes, [
             'is_default' => $attributes['is_default'] ?? $isFirst,
             'disk' => $attributes['disk'] ?? AttachmentConfig::defaultDisk(),
         ]));
